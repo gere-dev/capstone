@@ -1,0 +1,42 @@
+# Node.js and React files
+node_modules/
+build/
+dist/
+public/build/
+dist-ssr
+*.local
+
+# Mac OS X files
+.DS_Store
+.AppleDouble
+LSOverride
+
+# Editor and IDE files
+.vscode/
+.idea/
+*.vscode/
+*.idea/
+
+.vscode/*
+!.vscode/extensions.json
+.idea
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# OS-specific files
+*.log
+*.tmp
+*.temp
+
+# Node.js and React dependencies
+package-lock.json
+yarn.lock
+
+# Environment variables 
+.env
+.env.local
+
+rest
