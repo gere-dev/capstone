@@ -2,6 +2,8 @@ import jwt, { type JwtPayload } from 'jsonwebtoken';
 import { authRepository } from '../repositories/auth.repository.js';
 import { type Request, type Response, type NextFunction } from 'express';
 import { constants } from '../constants.js';
+import z from 'zod';
+import { validateUUID } from '../utils/general.util.js';
 
 // a middleware that authenticate a user
 const protect = async (req: Request, res: Response, next: NextFunction) => {
@@ -24,35 +26,22 @@ const protect = async (req: Request, res: Response, next: NextFunction) => {
 			return res.status(401).json({ message: 'Unauthorized: Invalid payload' });
 		}
 
+		const userIdValidation = validateUUID(decoded.sub);
+		if (!userIdValidation.success) {
+			return res.status(401).json({ message: 'Unauthorized: Malformed User Identity' });
+		}
+
 		const userId = decoded.sub;
 
 		req.user = { id: userId };
 
 		next();
 	} catch (error) {
-		//request for new access token
-		return res.status(401).json({ message: ' Expired or invalid token' });
+		return res.status(401).json({ message: ' Expired or invalid token' }); // 401 to request for new token
 	}
 };
 
-// a middlware ethat check if the user is authorized to make changes
-const isOwner = (req: Request, res: Response, next: NextFunction) => {
-	const authenticatedUserId = req.user?.id;
-	const requestedUserId = req.body.userId;
-
-	if (!authenticatedUserId) {
-		return res.status(401).json({ message: 'Not authenticated' }); // silent refresher
-	}
-
-	// check if the IDs match
-	if (authenticatedUserId !== requestedUserId) {
-		return res.status(403).json({ message: 'Forbidden: you are not authorized to make changes' });
-	}
-
-	next();
-};
-
-// a middleware verifies refresh token
+// a middleware that verifies refresh token
 const verifyRefreshToken = async (req: Request, res: Response, next: NextFunction) => {
 	const token = req.cookies?.refreshToken;
 	if (!token) return res.status(401).json({ message: 'No refresh token' });
@@ -67,10 +56,10 @@ const verifyRefreshToken = async (req: Request, res: Response, next: NextFunctio
 		const { sub } = decodedToken as JwtPayload;
 
 		const userId = sub as string;
-		const user = await authRepository.getUserById(userId);
+		const user = await authRepository.findById(userId);
 
-		req.user = { id: userId };
 		if (!user) return res.status(401).json({ message: 'User not found' });
+		req.user = { id: userId };
 
 		next();
 	} catch (err) {
@@ -78,8 +67,38 @@ const verifyRefreshToken = async (req: Request, res: Response, next: NextFunctio
 	}
 };
 
+// validate params
+const validateParams = (paramNames: string[]) => {
+	return (req: Request, res: Response, next: NextFunction) => {
+		const errors: any = [];
+
+		paramNames.forEach((paramName) => {
+			const id = req.params[paramName] as string;
+			const result = validateUUID(id);
+
+			if (!result.success) {
+				errors.push(
+					...result.error.issues.map((issue) => ({
+						message: issue.message,
+						path: issue.path,
+					})),
+				);
+			}
+		});
+
+		if (errors.length > 0) {
+			return res.status(400).json({
+				success: false,
+				errors,
+			});
+		}
+
+		next();
+	};
+};
+
 export const authMiddleware = {
 	verifyRefreshToken,
 	protect,
-	isOwner,
+	validateParams,
 };

@@ -1,8 +1,8 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { memo, useEffect, useMemo, useState } from 'react';
 import { MdDelete } from 'react-icons/md';
 import { AiFillEdit } from 'react-icons/ai';
 import { type IconType } from 'react-icons/lib';
-import { Button } from '../../components/ui';
+import { Button, InputField } from '../../components/ui';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import { selectAllProducts, selectPagination } from '../../features/product/product.selector';
 import { productThunk } from '../../features/product/product.thunk';
@@ -11,13 +11,16 @@ import { debounce } from '../../utils';
 import { Pagination } from '../../components/common';
 import { setProductCurrentPage, setProductsPerPage } from '../../features/product/product.slice';
 import { IoBagHandleSharp } from 'react-icons/io5';
+import { EFormModalType, EProductStatus } from '../../enums';
+import { IoMdAdd } from 'react-icons/io';
 
-const tableHeaders = ['name', 'sku', 'category', 'quantity', 'status', 'action'];
+const tableHeaders = ['sku', 'name', 'price', 'category', 'quantity', 'status', 'action'];
 
-export const InventoryPage: React.FC = () => {
+export const InventoryPage: React.FC = memo(() => {
 	const [searchTerm, setSearchTerm] = useState('');
 
 	const { currentPage, itemsPerPage, totalPages } = useAppSelector(selectPagination);
+
 	const products = useAppSelector(selectAllProducts);
 
 	const dispatch = useAppDispatch();
@@ -31,7 +34,7 @@ export const InventoryPage: React.FC = () => {
 	};
 
 	const handleUpdate = (id: string) => {
-		dispatch(openModal({ isEdit: true, modalType: 'product' }));
+		dispatch(openModal({ isEdit: true, modalType: EFormModalType.PRODUCT }));
 		dispatch(productThunk.getProductById(id));
 	};
 
@@ -60,60 +63,65 @@ export const InventoryPage: React.FC = () => {
 
 	return (
 		<>
-			<div className="container mx-auto px-4 py-8 relative">
-				<h1 className="text-2xl font-bold mb-6 text-gray-800 ">Inventory</h1>
-
+			<div className="px-4  relative">
 				{/* Search Bar */}
-				<div className="mb-6 flex gap-4  ">
-					<input
-						type="text"
-						placeholder="Search products..."
-						className="p-3 border border-gray-300 rounded-lg focus:outline-none flex-8"
-						value={searchTerm}
-						onChange={(e) => {
-							const term = e.target.value;
-							debouncedSearch(term);
-							setSearchTerm(term);
-						}}
-					/>
+				<div className="flex max-w-2xl h-24 items-center justify-start">
+					<span className="w-[400px]">
+						<InputField
+							type="text"
+							placeholder="Search products..."
+							className="pl-3 border border-gray-200 rounded-lg outline-none w-sm bg-gray-100/50"
+							value={searchTerm}
+							onChange={(e) => {
+								const term = e.target.value;
+								debouncedSearch(term);
+								setSearchTerm(term);
+							}}
+						/>
+					</span>
 					<Button
-						className="capitalize flex-1"
+						className="capitalize h-12 flex items-center gap-2 justify-center"
 						variant="primary"
-						onClick={() => dispatch(openModal({ isEdit: false, modalType: 'product' }))}
+						onClick={() => dispatch(openModal({ isEdit: false, modalType: EFormModalType.PRODUCT }))}
+						style={{
+							width: '160px',
+						}}
 					>
-						add Product
+						<IoMdAdd />
+						<span>add Product</span>
 					</Button>
 				</div>
 
 				{/* Table */}
-				<div className="bg-white rounded-lg shadow overflow-hidden relative">
-					<div className="overflow-y-auto h-[calc(100vh-19.5rem)] relative">
-						<table className="min-w-full divide-y divide-gray-200 ">
+				<div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+					<div className="overflow-y-auto h-[calc(100vh-12.5rem)] relative">
+						<table className="w-full table-fixed divide-y divide-gray-200">
 							<TableHeaders headers={tableHeaders} />
 
 							<tbody className="bg-white divide-y divide-gray-200">
 								{products?.length > 0 ? (
 									products?.map((product) => (
 										<tr key={product.id} className="hover:bg-gray-50  border-b border-gray-200">
-											<TableItemData item={product.name} />
 											<TableItemData item={product.sku} />
+											<TableItemData item={product.name} />
+											<TableItemData item={'$' + Number(product.price).toFixed(2)} />
 											<TableItemData item={product.category} />
 											<TableItemData item={product.quantity} />
-											<td className="px-6 py-4 w-1/6">
+											<td className="p-4 whitespace-nowrap text-sm font-medium w-1/7">
 												<span
 													className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full  
-                      ${
-							product.status === 'In Stock'
-								? 'bg-green-100 text-green-800'
-								: product.status === 'Low Stock'
-									? 'bg-yellow-100 text-yellow-800'
-									: 'bg-red-100 text-red-800'
-						}`}
+													${
+														product.status === EProductStatus.IN_STOCK
+															? 'bg-green-100 text-green-800'
+															: product.status === EProductStatus.LOW_STOCK
+																? 'bg-yellow-100 text-yellow-800'
+																: 'bg-red-100 text-red-800'
+													}`}
 												>
 													{product.status}
 												</span>
 											</td>
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-3 w-1/6">
+											<td className="px-4 py-4 whitespace-nowrap text-sm font-medium flex gap-3 w-1/7">
 												<TableActionButton
 													handleClick={() => handleUpdate(product.id)}
 													Icon={AiFillEdit}
@@ -125,7 +133,12 @@ export const InventoryPage: React.FC = () => {
 												<TableActionButton
 													handleClick={() => {
 														dispatch(productThunk.getProductById(product.id));
-														dispatch(openModal({ modalType: 'order', isEdit: false }));
+														dispatch(
+															openModal({
+																modalType: EFormModalType.ORDER,
+																isEdit: false,
+															}),
+														);
 													}}
 													Icon={IoBagHandleSharp}
 												/>
@@ -155,12 +168,12 @@ export const InventoryPage: React.FC = () => {
 			</div>
 		</>
 	);
-};
+});
 
 const TableHeaders = ({ headers }: { headers: string[] }) => {
 	return (
 		<thead>
-			<tr className="bg-gray-50 sticky top-0 z-10 w-1/6 ">
+			<tr className="bg-gray-100 sticky top-0 z-10">
 				{headers.map((title, index) => (
 					<th
 						key={title + index}
@@ -176,8 +189,8 @@ const TableHeaders = ({ headers }: { headers: string[] }) => {
 
 const TableItemData = ({ item }: { item: string | number }) => {
 	return (
-		<td className="px-4 py-4 wrap-normal w-1/6 text-ellipsis">
-			<p className="text-sm font-medium text-gray-900 text-ellipsis">{item}</p>
+		<td className="px-4 py-4  w-1/7 text-ellipsis  overflow-hidden">
+			<p className="text-sm font-medium text-gray-900 truncate">{item}</p>
 		</td>
 	);
 };
@@ -189,7 +202,7 @@ const TableActionButton = ({ handleClick, Icon }: { handleClick: () => void; Ico
 				e.stopPropagation();
 				handleClick();
 			}}
-			className="text-gray-500"
+			className="text-gray-500 shrink-0"
 		>
 			<Icon size={20} />
 		</button>

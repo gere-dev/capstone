@@ -5,7 +5,7 @@ import { selectAuth } from '../../features/auth';
 export const PublicRoute = () => {
 	const { isAuthenticated, user, status } = useAppSelector(selectAuth);
 
-	if (status === 'loading')
+	if (status === 'loading' && !user)
 		return <div className="h-screen w-screen flex justify-center items-center">Loading...</div>;
 
 	if (isAuthenticated && user) {

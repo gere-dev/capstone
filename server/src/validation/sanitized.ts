@@ -7,11 +7,7 @@ export const sanitized = (schema: z.ZodString) =>
 			allowedAttributes: {},
 		});
 
-		if (clean.trim().length === 0) {
-			throw new Error('Invalid input.');
-		}
-
-		return clean;
+		return clean.trim();
 	});
 
-export const sanitizedPhone = sanitized(z.string().regex(/^[0-9+\-()/\s]+$/, 'Invalid phone number format'));
+export const sanitizedPhone = sanitized(z.string().regex(/^[0-9+\-()/\s]+$/));

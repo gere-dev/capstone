@@ -1,26 +1,28 @@
 import { InputField } from '../../components/ui';
 import type { IconType } from 'react-icons/lib';
 import { AiFillEdit } from 'react-icons/ai';
-import { useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import { useAppDispatch, useAppSelector } from '../../hooks';
 import { orderThunk } from '../../features/order/order.thunk';
 import { selectOrders } from '../../features/order/order.selector';
 import { debounce } from '../../utils';
 import { openModal } from '../../features/modal';
+import { setOrderCurrentPage, setOrdersPerPage } from '../../features/order/order.slice';
+import { Pagination } from '../../components/common';
+import { EFormModalType } from '../../enums';
 
-const tableHeaders = ['name', 'product ', 'sku', 'address', 'status', 'actions'];
+const tableHeaders = ['sku', 'customer name', 'product ', 'total price', 'quantity', 'status', 'actions'];
 
-export const OrdersPage: React.FC = () => {
-	const dispatch = useAppDispatch();
-
+export const OrdersPage: React.FC = memo(() => {
 	const {
 		orders,
-		pagination: { currentPage, itemsPerPage },
+		pagination: { currentPage, itemsPerPage, totalPages },
 	} = useAppSelector(selectOrders);
+	const dispatch = useAppDispatch();
 
 	useEffect(() => {
 		dispatch(orderThunk.getAllOrders({ currentPage: currentPage, limit: itemsPerPage }));
-	}, []);
+	}, [dispatch, currentPage, itemsPerPage]);
 
 	const debouncedSearch = useMemo(
 		() =>
@@ -36,45 +38,62 @@ export const OrdersPage: React.FC = () => {
 		};
 	}, [debouncedSearch]);
 
+	const handleChangePage = (pageNum: number) => {
+		dispatch(setOrderCurrentPage(pageNum));
+	};
+
+	const handleChangePerPage = (perPage: number) => {
+		dispatch(setOrdersPerPage(perPage));
+		dispatch(setOrderCurrentPage(1));
+	};
+
 	return (
 		<>
-			<div className="container mx-auto px-4 py-8 relative">
-				<h1 className="text-2xl font-bold mb-6 text-gray-800 ">Orders</h1>
-
+			<div className=" px-4 relative">
 				{/* Search Bar */}
-				<div className="mb-6 flex gap-4 w-full ">
-					<InputField
-						type="text"
-						placeholder="Search Orders..."
-						className="w-full flex-1"
-						onChange={(e) => {
-							const term = e.target.value;
-							debouncedSearch(term);
-						}}
-					/>
+				<div className="flex max-w-2xl h-24 items-center justify-start">
+					<span className="w-[400px]">
+						<InputField
+							type="text"
+							placeholder="Search orders..."
+							className="pl-3 border border-gray-200 rounded-lg focus:outline-none flex-8 w-sm bg-gray-100/50"
+							onChange={(e) => {
+								const term = e.target.value;
+								debouncedSearch(term);
+							}}
+						/>
+					</span>
 				</div>
 
 				{/* Table */}
-				<div className="bg-white rounded-lg shadow overflow-hidden relative">
-					<div className="overflow-y-auto h-[calc(100vh-19.5rem)] relative">
-						<table className="min-w-full divide-y divide-gray-200 ">
+				<div className="bg-white rounded-lg border border-gray-200 overflow-hidden relative">
+					<div className="overflow-y-auto h-[calc(100vh-12.5rem)] relative">
+						<table className="w-full table-fixed  divide-y divide-gray-200 ">
 							<TableHeaders headers={tableHeaders} />
 
 							<tbody className="bg-white divide-y divide-gray-200">
 								{orders?.length > 0 ? (
 									orders?.map((order) => (
 										<tr key={order.id} className="hover:bg-gray-50  border-b border-gray-200">
+											<TableItemData item={order.sku} />
 											<TableItemData item={order.name} />
 											<TableItemData item={order.productName} />
-											<TableItemData item={order.sku} />
-											<TableItemData item={order.address} />
+											<TableItemData
+												item={'$' + Number(order.productPrice * order.quantity).toFixed(2)}
+											/>
+											<TableItemData item={order.quantity} />
 											<TableItemData item={order.status} />
 
-											<td className="px-6 py-4 whitespace-nowrap text-sm font-medium flex gap-3 w-10">
+											<td className="p-4 whitespace-nowrap text-sm font-medium w-1/7">
 												<TableActionButton
 													handleClick={() => {
 														dispatch(orderThunk.getOrderById(order.id));
-														dispatch(openModal({ isEdit: true, modalType: 'order' }));
+														dispatch(
+															openModal({
+																isEdit: true,
+																modalType: EFormModalType.ORDER,
+															}),
+														);
 													}}
 													Icon={AiFillEdit}
 												/>
@@ -92,15 +111,23 @@ export const OrdersPage: React.FC = () => {
 						</table>
 					</div>
 				</div>
+				{/* Pagination */}
+				<Pagination
+					currentPage={currentPage}
+					totalPages={totalPages}
+					itemsPerPage={itemsPerPage}
+					onPageChange={handleChangePage}
+					onPerPageChange={handleChangePerPage}
+				/>
 			</div>
 		</>
 	);
-};
+});
 
 const TableHeaders = ({ headers }: { headers: string[] }) => {
 	return (
 		<thead>
-			<tr className="bg-gray-50 sticky top-0 z-10 w-1/6 ">
+			<tr className="bg-gray-100 sticky top-0 z-10 w-1/7 ">
 				{headers.map((title, index) => (
 					<th
 						key={title + index}
@@ -115,8 +142,8 @@ const TableHeaders = ({ headers }: { headers: string[] }) => {
 };
 const TableItemData = ({ item }: { item: string | number }) => {
 	return (
-		<td className="px-4 py-4 wrap-normal w-1/6 text-ellipsis">
-			<p className="text-sm font-medium text-gray-900 text-ellipsis">{item}</p>
+		<td className="px-4 py-4  w-1/7 text-ellipsis  overflow-hidden">
+			<p className="text-sm font-medium text-gray-900 truncate">{item}</p>
 		</td>
 	);
 };
@@ -128,7 +155,7 @@ const TableActionButton = ({ handleClick, Icon }: { handleClick: () => void; Ico
 				e.stopPropagation();
 				handleClick();
 			}}
-			className="text-gray-500"
+			className="text-gray-500 shrink-0"
 		>
 			<Icon size={20} />
 		</button>

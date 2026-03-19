@@ -1,7 +1,9 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import type { IProduct, IProductPaginated } from '../../types';
+import type { IProductPaginated } from '../../types';
 import { isAxiosError } from 'axios';
 import { productService } from '../../services/product.service';
+import type { EProductStatus } from '../../enums';
+import type { TProduct, TProductBase } from '../../schemas';
 
 const getAllProduct = createAsyncThunk<
 	IProductPaginated,
@@ -19,14 +21,15 @@ const getAllProduct = createAsyncThunk<
 	}
 });
 
-const createProduct = createAsyncThunk<IProduct, IProduct, { rejectValue: string }>(
+const createProduct = createAsyncThunk<TProduct, TProductBase, { rejectValue: string }>(
 	'product/createProduct',
-	async (product: IProduct, { rejectWithValue }) => {
+	async (product: TProductBase, { rejectWithValue }) => {
 		try {
 			return await productService.createProduct(product);
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.message || error.response.data?.message);
+				console.log(error.response.data.errors);
+				return rejectWithValue(error.response.data);
 			} else {
 				return rejectWithValue('UnKnown error occured while creating product');
 			}
@@ -35,15 +38,15 @@ const createProduct = createAsyncThunk<IProduct, IProduct, { rejectValue: string
 );
 
 const updateProduct = createAsyncThunk<
-	{ id: string; product: IProduct },
-	{ id: string; product: IProduct },
+	{ id: string; product: TProduct },
+	{ id: string; product: TProduct },
 	{ rejectValue: string }
 >('product/updateProduct', async ({ id, product }, { rejectWithValue }) => {
 	try {
 		return await productService.updateProduct({ id, product });
 	} catch (error) {
 		if (isAxiosError(error) && error.response) {
-			return rejectWithValue(error.message);
+			return rejectWithValue(error.response.data);
 		} else {
 			return rejectWithValue('UnKnown error occured while updating product');
 		}
@@ -58,7 +61,7 @@ const deleteProduct = createAsyncThunk<string, string, { rejectValue: string }>(
 			return id;
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.message);
+				return rejectWithValue(error.response.data);
 			} else {
 				return rejectWithValue('UnKnown error occured while deleting a product');
 			}
@@ -66,34 +69,65 @@ const deleteProduct = createAsyncThunk<string, string, { rejectValue: string }>(
 	},
 );
 
-const getProductById = createAsyncThunk<IProduct, string, { rejectValue: string }>(
+const getProductById = createAsyncThunk<TProduct, string, { rejectValue: string }>(
 	'product/getById',
 	async (id, { rejectWithValue }) => {
 		try {
 			return await productService.getProductById(id);
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.message);
+				return rejectWithValue(error.response.data);
 			} else {
 				return rejectWithValue('UnKnown error occured while getting product by id');
 			}
 		}
 	},
 );
-const searchProduct = createAsyncThunk<IProduct[], string, { rejectValue: string }>(
+const searchProduct = createAsyncThunk<TProduct[], string, { rejectValue: string }>(
 	'product/searchProduct',
 	async (term, { rejectWithValue }) => {
 		try {
 			return await productService.searchProduct(term);
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.message);
+				return rejectWithValue(error.response.data);
 			} else {
 				return rejectWithValue('UnKnown error occured while searching for product');
 			}
 		}
 	},
 );
+const updateQuantityProduct = createAsyncThunk<
+	{ productId: string; productQuantity: number; status: EProductStatus },
+	{ productId: string; productQuantity: number },
+	{ rejectValue: string }
+>('product/productQuantity', async ({ productId, productQuantity }, { rejectWithValue }) => {
+	try {
+		return await productService.updateProductQuantity(productId, productQuantity);
+	} catch (error) {
+		if (isAxiosError(error) && error.response) {
+			return rejectWithValue(error.response.data);
+		} else {
+			return rejectWithValue('UnKnown error occured updating quantity');
+		}
+	}
+});
+
+const getStockLevel = createAsyncThunk<
+	{ title: string; generatedAt: Date; products: TProduct[] },
+	'low' | 'out',
+	{ rejectValue: string }
+>('product/getStockLevel', async (typeReport, { rejectWithValue }) => {
+	try {
+		return await productService.getStockReport(typeReport);
+	} catch (error) {
+		if (isAxiosError(error) && error.response) {
+			return rejectWithValue(error.response.data);
+		} else {
+			return rejectWithValue('UnKnown error occured while getting product by id');
+		}
+	}
+});
 
 export const productThunk = {
 	getAllProduct,
@@ -102,4 +136,6 @@ export const productThunk = {
 	createProduct,
 	deleteProduct,
 	searchProduct,
+	updateQuantityProduct,
+	getStockLevel,
 };

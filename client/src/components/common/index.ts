@@ -3,3 +3,5 @@ export * from './publicRoute';
 export * from './pagination';
 export * from './modal';
 export * from './orderForm';
+export * from './supplierForm';
+export * from './categoryForm';

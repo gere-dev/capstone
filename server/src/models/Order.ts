@@ -1,132 +1,106 @@
-import { DataTypes, type Model, type Sequelize } from 'sequelize';
-import type { TOrderBase } from '../schema/order.schema.js';
+import { DataTypes, Model, Sequelize } from 'sequelize';
+import type { InferAttributes, InferCreationAttributes, CreationOptional } from 'sequelize';
+import { EOrder } from '../enums/order.enum.js';
 
-export interface OrderAttributes extends TOrderBase {
-	id: string;
-	userId: string;
-	createdAt: Date;
-	updatedAt?: Date;
+export class Order extends Model<InferAttributes<Order>, InferCreationAttributes<Order>> {
+	declare id: CreationOptional<string>;
+	declare name: string;
+	declare phone: string | null;
+	declare address: string;
+	declare purchaseDate: Date;
+	declare productName: string;
+	declare productId: string | null;
+	declare quantity: number;
+	declare productPrice: number;
+	declare sku: string;
+	declare status: EOrder;
+	declare userId: string;
+
+	declare createdAt: CreationOptional<Date>;
+	declare updatedAt: CreationOptional<Date>;
+
+	static initModel(sequelize: Sequelize) {
+		return Order.init(
+			{
+				id: {
+					type: DataTypes.UUID,
+					defaultValue: DataTypes.UUIDV4,
+					primaryKey: true,
+					allowNull: false,
+				},
+				name: {
+					type: DataTypes.STRING,
+					allowNull: false,
+					validate: { notEmpty: true, len: [1, 100] },
+				},
+				phone: {
+					type: DataTypes.STRING,
+					allowNull: true,
+					validate: { len: [1, 20] },
+				},
+				address: {
+					type: DataTypes.STRING,
+					allowNull: false,
+					validate: { notEmpty: true, len: [1, 500] },
+				},
+				purchaseDate: {
+					type: DataTypes.DATE,
+					allowNull: false,
+				},
+				productName: {
+					type: DataTypes.STRING,
+					allowNull: false,
+				},
+				productId: {
+					type: DataTypes.UUID,
+					allowNull: true,
+					references: {
+						model: 'products',
+						key: 'id',
+					},
+					onUpdate: 'CASCADE',
+					onDelete: 'SET NULL',
+				},
+				quantity: {
+					type: DataTypes.INTEGER,
+					allowNull: false,
+					validate: { min: 0 },
+				},
+				productPrice: {
+					type: DataTypes.DECIMAL(10, 2),
+					allowNull: false,
+					get() {
+						const value = this.getDataValue('productPrice');
+						return value ? parseFloat(value.toString()) : 0;
+					},
+				},
+				sku: {
+					type: DataTypes.STRING,
+					allowNull: false,
+				},
+				status: {
+					type: DataTypes.ENUM(...Object.values(EOrder)),
+					allowNull: false,
+					defaultValue: EOrder.pending,
+				},
+				userId: {
+					type: DataTypes.UUID,
+					allowNull: false,
+					references: {
+						model: 'users',
+						key: 'id',
+					},
+					onUpdate: 'CASCADE',
+					onDelete: 'CASCADE',
+				},
+				createdAt: DataTypes.DATE,
+				updatedAt: DataTypes.DATE,
+			},
+			{
+				sequelize,
+				tableName: 'orders',
+				underscored: true,
+			},
+		);
+	}
 }
-
-interface OrderCreationAttributes extends Omit<OrderAttributes, 'id'> {}
-
-export interface OrderInstance extends Model<OrderAttributes, OrderCreationAttributes>, OrderAttributes {}
-
-const Order = (sequelize: Sequelize) => {
-	const OrderModel = sequelize.define<OrderInstance>(
-		'Order',
-		{
-			id: {
-				type: DataTypes.UUID,
-				defaultValue: DataTypes.UUIDV4,
-				primaryKey: true,
-				unique: true,
-				allowNull: false,
-			},
-			name: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				validate: {
-					notEmpty: true,
-					len: [1, 100],
-				},
-			},
-			phone: {
-				type: DataTypes.STRING,
-				allowNull: true,
-				validate: {
-					len: [1, 20],
-				},
-			},
-			address: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				validate: {
-					notEmpty: true,
-					len: [1, 500],
-				},
-			},
-			purchaseDate: {
-				type: DataTypes.DATE,
-				allowNull: false,
-				validate: {
-					isDate: true,
-				},
-			},
-			productName: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				validate: {
-					notEmpty: true,
-					len: [1, 255],
-				},
-			},
-			productId: {
-				type: DataTypes.UUID,
-				allowNull: false,
-				references: {
-					model: 'products',
-					key: 'id',
-				},
-			},
-
-			quantity: {
-				type: DataTypes.INTEGER,
-				allowNull: false,
-				validate: {
-					isInt: true,
-					min: 0,
-				},
-			},
-
-			productPrice: {
-				type: DataTypes.DECIMAL(10, 2),
-				allowNull: false,
-				validate: {
-					isDecimal: true,
-					min: 0,
-				},
-			},
-			sku: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				validate: {
-					notEmpty: true,
-					len: [3, 50],
-				},
-			},
-			status: {
-				type: DataTypes.ENUM('Processing', 'Shipped', 'Delivered', 'Cancelled', 'Returned'),
-				allowNull: false,
-				defaultValue: 'Processing',
-			},
-			userId: {
-				type: DataTypes.UUID,
-				allowNull: false,
-				references: {
-					model: 'users',
-					key: 'id',
-				},
-			},
-			createdAt: {
-				type: DataTypes.DATE,
-				allowNull: false,
-				defaultValue: DataTypes.NOW,
-			},
-			updatedAt: {
-				type: DataTypes.DATE,
-				allowNull: true,
-				defaultValue: DataTypes.NOW,
-			},
-		},
-		{
-			timestamps: true,
-			createdAt: 'createdAt',
-			updatedAt: 'updatedAt',
-			underscored: true,
-		},
-	);
-	return OrderModel;
-};
-
-export default Order;

@@ -1,103 +1,99 @@
 import { DataTypes, Model, Sequelize } from 'sequelize';
-import type { TProductBase } from '../schema/product.schema.js';
+import type { InferAttributes, InferCreationAttributes, CreationOptional } from 'sequelize';
 
-export interface ProductAttributes extends TProductBase {
-	id: string;
-	userId: string;
-	createdAt?: Date;
-	updatedAt?: Date;
-}
+export class Product extends Model<InferAttributes<Product>, InferCreationAttributes<Product>> {
+	declare id: CreationOptional<string>;
+	declare name: string;
+	declare userId: string;
+	declare description: CreationOptional<string | null>;
+	declare sku: string;
+	declare price: number;
+	declare quantity: number;
+	declare categoryId: string | null;
 
-interface ProductCreationAttributes extends Omit<ProductAttributes, 'id'> {}
+	declare createdAt: CreationOptional<Date>;
+	declare updatedAt: CreationOptional<Date>;
 
-export interface ProductInstance extends Model<ProductAttributes, ProductCreationAttributes>, ProductAttributes {}
-
-const Product = (sequelize: Sequelize) => {
-	const ProductModel = sequelize.define<ProductInstance>(
-		'Product',
-		{
-			id: {
-				type: DataTypes.UUID,
-				defaultValue: DataTypes.UUIDV4,
-				primaryKey: true,
-				allowNull: false,
-			},
-			name: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				validate: {
-					notEmpty: true,
-					len: [2, 100],
+	static initModel(sequelize: Sequelize) {
+		return Product.init(
+			{
+				id: {
+					type: DataTypes.UUID,
+					defaultValue: DataTypes.UUIDV4,
+					primaryKey: true,
+					allowNull: false,
 				},
-			},
-
-			userId: {
-				type: DataTypes.UUID,
-				references: {
-					model: 'users',
-					key: 'id',
+				name: {
+					type: DataTypes.STRING,
+					allowNull: false,
+					validate: {
+						notEmpty: true,
+						len: [2, 100],
+					},
 				},
-			},
-
-			description: {
-				type: DataTypes.TEXT,
-				allowNull: true,
-			},
-			sku: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				unique: true,
-				validate: {
-					notEmpty: true,
-					len: [3, 50],
+				userId: {
+					type: DataTypes.UUID,
+					allowNull: false,
+					references: {
+						model: 'users',
+						key: 'id',
+					},
+					onUpdate: 'CASCADE',
+					onDelete: 'CASCADE',
 				},
-			},
-			price: {
-				type: DataTypes.DECIMAL(10, 2),
-				allowNull: false,
-				validate: {
-					isDecimal: true,
-					min: 0,
+				description: {
+					type: DataTypes.TEXT,
+					allowNull: true,
 				},
-			},
-			quantity: {
-				type: DataTypes.INTEGER,
-				allowNull: false,
-				defaultValue: 0,
-				validate: {
-					isInt: true,
-					min: 0,
-				},
-			},
-			categoryId: {
-				type: DataTypes.UUID,
-				allowNull: true,
-				references: {
-					model: 'categories',
-					key: 'id',
-				},
-			},
-		},
-		{
-			timestamps: true,
-			tableName: 'products',
-			underscored: true,
-			indexes: [
-				{
-					fields: ['sku'],
+				sku: {
+					type: DataTypes.STRING,
+					allowNull: false,
 					unique: true,
+					validate: {
+						notEmpty: true,
+						len: [3, 50],
+					},
 				},
-				{
-					fields: ['name'],
+				price: {
+					type: DataTypes.DECIMAL(10, 2),
+					allowNull: false,
+					get() {
+						const value = this.getDataValue('price');
+						return value ? parseFloat(value.toString()) : 0;
+					},
+					validate: {
+						isDecimal: true,
+						min: 0,
+					},
 				},
-				{
-					fields: ['category_id'],
+				quantity: {
+					type: DataTypes.INTEGER,
+					allowNull: false,
+					defaultValue: 0,
+					validate: {
+						isInt: true,
+						min: 0,
+					},
 				},
-			],
-		},
-	);
-
-	return ProductModel;
-};
-
-export default Product;
+				categoryId: {
+					type: DataTypes.UUID,
+					allowNull: true,
+					references: {
+						model: 'categories',
+						key: 'id',
+					},
+					onUpdate: 'CASCADE',
+					onDelete: 'SET NULL',
+				},
+				createdAt: DataTypes.DATE,
+				updatedAt: DataTypes.DATE,
+			},
+			{
+				sequelize,
+				tableName: 'products',
+				underscored: true,
+				indexes: [{ fields: ['sku'], unique: true }, { fields: ['name'] }, { fields: ['category_id'] }],
+			},
+		);
+	}
+}

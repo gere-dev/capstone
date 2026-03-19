@@ -11,7 +11,7 @@ const register = createAsyncThunk<IUser, TRegisterCredintials, { rejectValue: st
 			return response.data.user;
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.response.data.error || 'Register failed');
+				return rejectWithValue(error.response?.data || 'Register failed');
 			} else {
 				return rejectWithValue('Unknown error occurred while registering');
 			}
@@ -27,7 +27,7 @@ const login = createAsyncThunk<IUser, { email: string; password: string }, { rej
 			return response?.data?.user;
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.response.data.error || 'Login failed');
+				return rejectWithValue(error.response.data || 'Login failed');
 			} else {
 				return rejectWithValue('Unknown erro occurred while logging in');
 			}
@@ -40,7 +40,7 @@ const logout = createAsyncThunk('auth/logout', async (_, { rejectWithValue }) =>
 		await authServices.logout();
 	} catch (error) {
 		if (isAxiosError(error) && error.response) {
-			return rejectWithValue(error.response.data.error || 'Logout');
+			return rejectWithValue(error.response.data || 'Logout');
 		} else {
 			return rejectWithValue('Unknown erro occurred while logging out');
 		}

@@ -1,58 +1,68 @@
 import { sequelize } from '../database/db.js';
-import Product from './Product.js';
-import User from './User.js';
-import Category from './Category.js';
-import Order from './Order.js';
+import { Product } from './Product.js';
+import { User } from './User.js';
+import { Category } from './Category.js';
+import { Order } from './Order.js';
+import { Supplier } from './Supplier.js';
 
 // Initialize models
-const UserModel = User(sequelize);
-const ProductModel = Product(sequelize);
-const CategoryModel = Category(sequelize);
-const OrderModel = Order(sequelize);
+
+User.initModel(sequelize);
+Product.initModel(sequelize);
+Order.initModel(sequelize);
+Category.initModel(sequelize);
+Supplier.initModel(sequelize);
 
 // Associations
-UserModel.hasMany(ProductModel, {
+User.hasMany(Product, {
 	foreignKey: 'userId',
 	sourceKey: 'id',
 });
-ProductModel.belongsTo(UserModel, {
+Product.belongsTo(User, {
 	foreignKey: 'userId',
 });
 
-UserModel.hasMany(CategoryModel, {
+User.hasMany(Category, {
 	foreignKey: 'userId',
 	sourceKey: 'id',
 });
 
-CategoryModel.belongsTo(UserModel, {
+Category.belongsTo(User, {
 	foreignKey: 'userId',
 });
 
-CategoryModel.hasMany(ProductModel, {
+Category.hasMany(Product, {
 	foreignKey: 'categoryId',
 });
 
-ProductModel.belongsTo(CategoryModel, {
+Product.belongsTo(Category, {
 	foreignKey: 'categoryId',
 });
 
-UserModel.hasMany(OrderModel, {
+User.hasMany(Order, {
 	foreignKey: 'userId',
 	sourceKey: 'id',
 });
-OrderModel.belongsTo(UserModel, {
+Order.belongsTo(User, {
 	foreignKey: 'userId',
 });
 
-ProductModel.hasMany(OrderModel, {
+Product.hasMany(Order, {
 	foreignKey: 'productId',
 	sourceKey: 'id',
+	onDelete: 'SET NULL',
 });
 
-OrderModel.belongsTo(ProductModel, {
+Order.belongsTo(Product, {
 	foreignKey: 'productId',
 });
 
-OrderModel.belongsTo(ProductModel, { foreignKey: 'productId' });
+User.hasMany(Supplier, {
+	foreignKey: 'userId',
+	sourceKey: 'id',
+});
+Supplier.belongsTo(User, {
+	foreignKey: 'userId',
+});
 
-export { UserModel, ProductModel, CategoryModel, OrderModel };
+export { User, Product, Category, Order, Supplier };

@@ -1,55 +1,48 @@
 import { DataTypes, Model, Sequelize } from 'sequelize';
-import type { TCategoryBase } from '../schema/index.js';
+import type { InferAttributes, InferCreationAttributes, CreationOptional } from 'sequelize';
 
-interface CategoryAttributes extends TCategoryBase {
-	id: string;
-	userId: string;
-	createdAt?: Date;
-	updatedAt?: Date;
+export class Category extends Model<InferAttributes<Category>, InferCreationAttributes<Category>> {
+	declare id: CreationOptional<string>;
+	declare name: string;
+	declare userId: string;
+
+	declare description: CreationOptional<string | null>;
+
+	declare createdAt: CreationOptional<Date>;
+	declare updatedAt: CreationOptional<Date>;
+
+	static initModel(sequelize: Sequelize) {
+		return Category.init(
+			{
+				id: {
+					type: DataTypes.UUID,
+					defaultValue: DataTypes.UUIDV4,
+					primaryKey: true,
+				},
+				name: {
+					type: DataTypes.STRING,
+					allowNull: false,
+				},
+				userId: {
+					type: DataTypes.UUID,
+					allowNull: false,
+					references: {
+						model: 'users',
+						key: 'id',
+					},
+				},
+				description: {
+					type: DataTypes.TEXT,
+					allowNull: true,
+				},
+				createdAt: DataTypes.DATE,
+				updatedAt: DataTypes.DATE,
+			},
+			{
+				sequelize,
+				tableName: 'categories',
+				underscored: true,
+			},
+		);
+	}
 }
-
-interface CategoryCreationAttributes extends Omit<CategoryAttributes, 'id'> {}
-
-export interface CategoryInstance extends Model<CategoryAttributes, CategoryCreationAttributes>, CategoryAttributes {}
-
-const Category = (sequelize: Sequelize) => {
-	const CategoryModel = sequelize.define<CategoryInstance>(
-		'Category',
-		{
-			id: {
-				type: DataTypes.UUID,
-				defaultValue: DataTypes.UUIDV4,
-				primaryKey: true,
-				allowNull: false,
-			},
-			name: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				validate: {
-					notEmpty: true,
-					len: [2, 50],
-				},
-			},
-			userId: {
-				type: DataTypes.UUID,
-				references: {
-					model: 'users',
-					key: 'id',
-				},
-			},
-			description: {
-				type: DataTypes.TEXT,
-				allowNull: true,
-			},
-		},
-		{
-			timestamps: true,
-			tableName: 'categories',
-			underscored: true,
-		},
-	);
-
-	return CategoryModel;
-};
-
-export default Category;

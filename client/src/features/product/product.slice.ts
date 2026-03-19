@@ -1,12 +1,18 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { IProduct } from '../../types';
 import { productThunk } from './product.thunk';
+import type { TProduct } from '../../schemas';
 
 interface ProductState {
-	products: IProduct[];
-	selectedProduct: IProduct;
+	products: TProduct[];
+	selectedProduct: TProduct;
 	status: 'idle' | 'loading' | 'succeeded' | 'failed';
-	error: string | null;
+	error: any;
+	stockReport: {
+		title: string;
+		products: TProduct[];
+		generatedAt: Date;
+	};
 	pagination: {
 		currentPage: number;
 		itemsPerPage: 10 | 25 | 50;
@@ -19,22 +25,27 @@ const initialState: ProductState = {
 	products: [],
 	status: 'idle',
 	error: null,
-	selectedProduct: {} as IProduct,
+	selectedProduct: {} as TProduct,
 	pagination: {
 		currentPage: 1,
 		itemsPerPage: 10,
 		totalPages: 1,
 		totalItems: 0,
 	},
+	stockReport: {} as any,
 };
 
 export const productSlice = createSlice({
-	name: 'product',
+	name: 'products',
 	initialState,
 	reducers: {
 		// clear selected product
 		clearSelectedProduct: (state) => {
-			state.selectedProduct = {} as IProduct;
+			state.selectedProduct = {} as TProduct;
+		},
+
+		clearStockReport: (state) => {
+			state.stockReport = {} as any;
 		},
 
 		setProductsPerPage: (state, action) => {
@@ -68,7 +79,7 @@ export const productSlice = createSlice({
 			.addCase(productThunk.createProduct.fulfilled, (state, action) => {
 				state.status = 'succeeded';
 				const product = action.payload;
-				state.products.push(product);
+				state.products.unshift(product);
 			})
 			.addCase(productThunk.createProduct.rejected, (state, action) => {
 				state.status = 'failed';
@@ -131,9 +142,46 @@ export const productSlice = createSlice({
 
 			.addCase(productThunk.searchProduct.rejected, (state, action) => {
 				state.status = 'failed';
+				state.error = action.payload;
+			})
+
+			//update quantity
+			.addCase(productThunk.updateQuantityProduct.pending, (state) => {
+				state.status = 'loading';
+			})
+			.addCase(productThunk.updateQuantityProduct.fulfilled, (state, action) => {
+				state.status = 'succeeded';
+				const { productId, productQuantity, status } = action.payload;
+				console.log(productId, productQuantity);
+
+				const productIndex = state.products.findIndex((p) => p.id === productId);
+
+				if (productIndex !== -1) {
+					state.products[productIndex].quantity = productQuantity;
+					state.products[productIndex].status = status;
+				}
+			})
+
+			.addCase(productThunk.updateQuantityProduct.rejected, (state, action) => {
+				state.status = 'failed';
+				state.error = action.payload as string;
+			})
+
+			// get stock report
+			.addCase(productThunk.getStockLevel.pending, (state) => {
+				state.status = 'loading';
+			})
+			.addCase(productThunk.getStockLevel.fulfilled, (state, action) => {
+				state.status = 'succeeded';
+				state.stockReport = action.payload;
+			})
+
+			.addCase(productThunk.getStockLevel.rejected, (state, action) => {
+				state.status = 'failed';
 				state.error = action.payload as string;
 			});
 	},
 });
 
-export const { clearSelectedProduct, setProductCurrentPage, setProductsPerPage } = productSlice.actions;
+export const { clearSelectedProduct, setProductCurrentPage, setProductsPerPage, clearStockReport } =
+	productSlice.actions;

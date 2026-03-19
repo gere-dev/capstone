@@ -5,9 +5,12 @@ import cors from 'cors';
 import { corsOptions } from './config/cors.config.js';
 import 'dotenv/config';
 import cookieParser from 'cookie-parser';
+import path from 'path';
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = process.env.PORT || 5000;
+
+// Handle React Routing (SPA)
 
 // middlewares
 app.use(cors(corsOptions));
@@ -20,6 +23,13 @@ app.use('/api', routes);
 
 app.get('/health', (req: Request, res: Response) => {
 	res.send({ message: 'health check' });
+});
+
+const __dirname = path.resolve();
+app.use(express.static(path.join(__dirname, 'public')));
+
+app.get('/*spat', (req, res) => {
+	res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
 connectToDatabase()

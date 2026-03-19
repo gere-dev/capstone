@@ -1,3 +1,5 @@
+import type { TProduct } from '../schemas';
+
 export interface IProduct {
 	id: string;
 	name: string;
@@ -12,7 +14,7 @@ export interface IProduct {
 }
 
 export interface IProductPaginated {
-	data: IProduct[];
+	data: TProduct[];
 	pagination: {
 		totalItems: number;
 		currentPage: number;

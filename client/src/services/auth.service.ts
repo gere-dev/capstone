@@ -12,6 +12,7 @@ const register = async (credintials: TRegisterCredintials) => {
 };
 
 const logout = async (): Promise<AxiosResponse> => {
+	setAccessToken('');
 	return await publicInstance.post('/auth/logout');
 };
 
@@ -20,6 +21,10 @@ let accessTokenExp: number | null = null;
 let refreshPromise: Promise<string> | null = null;
 
 export function setAccessToken(token: string) {
+	if (!token) {
+		accessTokenExp = 0;
+		return;
+	}
 	accessToken = token;
 	const { exp } = jwtDecode<{ exp: number }>(token);
 	accessTokenExp = exp;

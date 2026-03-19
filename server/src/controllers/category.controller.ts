@@ -1,19 +1,12 @@
-import { CategoryRespository } from '../repositories/category.repository.js';
-import { type Request, type Response } from 'express';
-const categoryRepo = new CategoryRespository();
-const getAllCateogries = async (req: Request, res: Response) => {
-	try {
-		const userId = req.user.id;
+import { categoryRepo, type ICategoryRepository } from '../repositories/category.repository.js';
+import { type TCategory, type TCategoryBase } from '../schema/category.schema.js';
 
-		const cateogries = await categoryRepo.findAll(userId);
-		console.log(cateogries);
+import { BaseController } from './base.controller.js';
 
-		res.status(200).json(cateogries);
-	} catch (error) {
-		console.error('[Category Controller] Error fetching categories:', error);
-		res.status(500).json({ message: 'Internal Server Error' });
-		throw error;
+export class CategoryController extends BaseController<TCategory, TCategoryBase, ICategoryRepository> {
+	constructor() {
+		super(categoryRepo);
 	}
-};
+}
 
-export const categoryController = { getAllCateogries };
+export const categoryController = new CategoryController();

@@ -53,6 +53,7 @@ privateInstance.interceptors.response.use(
 				return privateInstance(originalRequest);
 			} catch (refreshError) {
 				store.dispatch(authThunk.logout());
+				authServices.setAccessToken('');
 				return Promise.reject(refreshError);
 			}
 		}

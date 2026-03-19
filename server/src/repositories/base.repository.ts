@@ -1,8 +1,16 @@
 import { Model, where, type ModelStatic } from 'sequelize';
 import z from 'zod';
 import type { PaginatedResult } from '../types/general.type.js';
-
-export abstract class BaseRepository<T, TBase, M extends Model> {
+export interface IBaseRepository<T, TBase> {
+	findAll(userId: string): Promise<T[]>;
+	findById(id: string, userId: string): Promise<T | null>;
+	create(data: TBase, userId: string): Promise<T>;
+	update(id: string, data: Partial<TBase>, userId: string): Promise<T>;
+	delete(id: string, userId: string): Promise<boolean>;
+	paginate(userId: string, page: number, limit: number): Promise<PaginatedResult<T>>;
+	search(userId: string, term: string): Promise<T[]>;
+}
+export abstract class BaseRepository<T, TBase, M extends Model> implements IBaseRepository<T, TBase> {
 	protected model: ModelStatic<M>;
 	protected schema: z.ZodSchema<T>;
 	protected baseSchema: z.ZodSchema<TBase>;
@@ -83,7 +91,7 @@ export abstract class BaseRepository<T, TBase, M extends Model> {
 		};
 	}
 
-	protected abstract search(userId: string, term: string): Promise<T[]>;
+	public abstract search(userId: string, term: string): Promise<T[]>;
 
 	async paginate(userId: string, page: number = 1, limit: number = 10): Promise<PaginatedResult<T>> {
 		const offset = (page - 1) * limit;
@@ -94,6 +102,7 @@ export abstract class BaseRepository<T, TBase, M extends Model> {
 			offset,
 			include: [{ all: true }],
 			distinct: true,
+			order: [['createdAt', 'DESC']],
 		});
 
 		return {

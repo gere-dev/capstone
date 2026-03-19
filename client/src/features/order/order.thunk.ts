@@ -10,7 +10,7 @@ const getAllOrders = createAsyncThunk<IOrderPaginated, { currentPage: number; li
 			return await orderService.getAllOrders(currentPage, limit);
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.message);
+				return rejectWithValue(error.response.data);
 			} else {
 				return rejectWithValue('UnKnown error occured while fetching orders.');
 			}
@@ -25,7 +25,7 @@ const searchOrder = createAsyncThunk<TOrder[], string, { rejectValue: string }>(
 			return await orderService.searchOrder(term);
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.message);
+				return rejectWithValue(error.response.data);
 			} else {
 				return rejectWithValue('UnKnown error occured while searching for order');
 			}
@@ -33,14 +33,14 @@ const searchOrder = createAsyncThunk<TOrder[], string, { rejectValue: string }>(
 	},
 );
 
-const createOrder = createAsyncThunk<TOrder, TOrder, { rejectValue: string }>(
+const createOrder = createAsyncThunk<TOrder, Omit<TOrder, 'id'>, { rejectValue: string }>(
 	'order/createOrder',
-	async (product: TOrder, { rejectWithValue }) => {
+	async (order, { rejectWithValue }) => {
 		try {
-			return await orderService.createOrder(product);
+			return await orderService.createOrder(order);
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.message || error.response.data?.message);
+				return rejectWithValue(error.response.data);
 			} else {
 				return rejectWithValue('UnKnown error occured while creating order');
 			}
@@ -57,7 +57,7 @@ const updateOrder = createAsyncThunk<
 		return await orderService.updateOrder({ id, order });
 	} catch (error) {
 		if (isAxiosError(error) && error.response) {
-			return rejectWithValue(error.message);
+			return rejectWithValue(error.response.data);
 		} else {
 			return rejectWithValue('UnKnown error occured while updating order');
 		}
@@ -71,7 +71,7 @@ const getOrderById = createAsyncThunk<TOrder, string, { rejectValue: string }>(
 			return await orderService.getOrderById(id);
 		} catch (error) {
 			if (isAxiosError(error) && error.response) {
-				return rejectWithValue(error.message);
+				return rejectWithValue(error.response.data);
 			} else {
 				return rejectWithValue('UnKnown error occured while getting order by id');
 			}

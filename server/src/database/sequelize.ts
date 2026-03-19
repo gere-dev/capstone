@@ -5,7 +5,7 @@ export const connectToDatabase = async () => {
 		await sequelize.authenticate();
 		console.log('Connection has been established successfully.');
 
-		const { UserModel, ProductModel, CategoryModel } = await import('../models/index.js');
+		// const { UserModel, ProductModel, CategoryModel } = await import('../models/index.js');
 
 		// console.log('Models:', Object.keys(sequelize.models));
 		await sequelize.sync({ force: false, alter: true });

@@ -6,16 +6,21 @@ import { selectAllCategories } from '../../features/category';
 import { closeModal } from '../../features/modal';
 import { clearSelectedProduct } from '../../features/product/product.slice';
 import { productThunk } from '../../features/product/product.thunk';
+import { Button, InputField, TextareaField } from '../ui';
+import { productBaseSchema, productSchema, productUnionSchema, type TProduct, type TProductBase } from '../../schemas';
+import { formatZodErrors, getGenericServerError, mapBackendZodErrors } from '../../utils';
+import type z from 'zod';
 
 type Product = Omit<IProduct, 'id'> | IProduct;
 
 interface Props {
 	isEdit: boolean;
-	productData: Product;
+	productData: TProduct;
 }
 
 export const ProductForm = ({ isEdit, productData }: Props) => {
-	const [product, setProduct] = useState<Product>(productData);
+	const [product, setProduct] = useState<TProduct>(productData);
+	const [errors, setErrors] = useState<Record<string, string>>({});
 
 	const { categories, status } = useAppSelector(selectAllCategories);
 
@@ -36,59 +41,83 @@ export const ProductForm = ({ isEdit, productData }: Props) => {
 			} else if (name === 'price' || name === 'quantity') {
 				data[name] = Number(value);
 			} else {
-				(data as Record<string, string | number>)[name] = value;
+				(data as Record<string, string | number | Date>)[name] = value;
 			}
 
 			return data;
 		});
-	};
 
-	// handles the rproduct update
-	const handleUpdate = async () => {
-		const body = product as IProduct;
-		dispatch(productThunk.updateProduct({ id: body.id, product: body }));
+		if (errors[name] || errors.server) {
+			setErrors((prev) => ({
+				...prev,
+				[name]: '',
+				server: '',
+			}));
+		}
 	};
 
 	const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
 		e.preventDefault();
 
-		if (isEdit) {
-			handleUpdate();
-		} else {
-			const body = product as IProduct;
-			dispatch(productThunk.createProduct(body));
+		const result: z.ZodSafeParseResult<TProduct | TProductBase> = productUnionSchema.safeParse(product);
+
+		if (!result.success) {
+			setErrors(formatZodErrors(result.error));
+			return;
 		}
 
-		dispatch(closeModal());
-		dispatch(clearSelectedProduct());
+		try {
+			if ('id' in result.data && result.data.id) {
+				await dispatch(productThunk.updateProduct({ id: result.data.id, product: result.data })).unwrap();
+				dispatch(clearSelectedProduct());
+				dispatch(closeModal());
+			} else {
+				await dispatch(productThunk.createProduct(result.data)).unwrap();
+				dispatch(clearSelectedProduct());
+				dispatch(closeModal());
+				setProduct({} as TProduct);
+			}
+		} catch (error: any) {
+			const backendErrors = mapBackendZodErrors(error);
+			if (backendErrors) {
+				setErrors(backendErrors);
+			} else {
+				setErrors({
+					server: getGenericServerError({
+						action: isEdit ? 'updating' : 'creating',
+						item: 'product',
+					}),
+				});
+			}
+		}
 	};
 
 	return (
-		<form onSubmit={handleSubmit} className="bg-white  p-6">
+		<form onSubmit={handleSubmit} className="bg-white p-6">
+			<h2 className="capitalize font-bold text-xl text-center mb-1">
+				{isEdit ? 'update product' : 'create product'}
+			</h2>
 			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
 				{/* Product Name */}
 				<div className="md:col-span-2">
-					<label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
-						Product Name *
-					</label>
-					<input
+					<InputField
+						label="Product Name*"
 						type="text"
 						id="name"
 						name="name"
 						value={product?.name}
 						onChange={handleChange}
 						required
-						className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						className="w-full px-3 py-2 border border-gray-300 rounded-md "
 						placeholder="Enter product name"
+						error={errors.name}
 					/>
 				</div>
 
 				{/* Price */}
 				<div>
-					<label htmlFor="price" className="block text-sm font-medium text-gray-700 mb-1">
-						Price *
-					</label>
-					<input
+					<InputField
+						label="Price*"
 						type="number"
 						id="price"
 						name="price"
@@ -97,50 +126,50 @@ export const ProductForm = ({ isEdit, productData }: Props) => {
 						required
 						min="0"
 						step="0.01"
-						className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						className="w-full px-3 py-2 border border-gray-300 rounded-md "
 						placeholder="0.00"
+						error={errors.price}
 					/>
 				</div>
 
 				{/* SKU */}
 				<div>
-					<label htmlFor="sku" className="block text-sm font-medium text-gray-700 mb-1">
-						SKU *
-					</label>
-					<input
+					<InputField
+						label={'SKU*'}
 						type="text"
 						id="sku"
 						name="sku"
 						value={product?.sku}
 						onChange={handleChange}
 						required
-						className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						className="w-full px-3 py-2 border border-gray-300 rounded-md "
 						placeholder="Enter SKU"
+						error={errors.sku}
 					/>
 				</div>
 
 				{/* Quantity */}
 				<div>
-					<label htmlFor="quantity" className="block text-sm font-medium text-gray-700 mb-1">
-						Quantity *
-					</label>
-					<input
+					<InputField
+						label="Quantity*"
 						type="number"
 						id="quantity"
 						name="quantity"
 						value={product?.quantity}
 						onChange={handleChange}
 						required
-						min="0"
-						className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						min={isEdit ? 0 : 1}
+						step={1}
+						className="w-full px-3 py-2 border border-gray-300 rounded-md "
 						placeholder="0"
+						error={errors.quantity}
 					/>
 				</div>
 
 				{/* Category */}
 				<div>
-					<label htmlFor="category" className="block text-sm font-medium text-gray-700 mb-1">
-						Category *
+					<label htmlFor="category" className="block text-sm font-bold text-gray-700 mb-2 ">
+						Category*
 					</label>
 					<select
 						id="category"
@@ -148,14 +177,14 @@ export const ProductForm = ({ isEdit, productData }: Props) => {
 						value={product?.category}
 						onChange={handleChange}
 						required
-						className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						className="w-full px-3 py-2 border border-gray-300 rounded-md h-[42px] "
 					>
 						<option value="">Select a category</option>
 						{status === 'loading' ? (
 							<option value="">Loading categories...</option>
 						) : (
 							categories?.map((category) => (
-								<option key={category.id} value={category.name}>
+								<option className="h-50" key={category.id} value={category.name}>
 									{category.name}
 								</option>
 							))
@@ -165,38 +194,33 @@ export const ProductForm = ({ isEdit, productData }: Props) => {
 
 				{/* Description */}
 				<div className="md:col-span-2">
-					<label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
-						Description
-					</label>
-					<textarea
+					<TextareaField
+						label="Description"
 						id="description"
 						name="description"
-						value={product.description}
+						value={product?.description || ''}
 						onChange={handleChange}
 						rows={4}
-						className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+						className="w-full px-3 py-2 border border-gray-300 rounded-md "
 						placeholder="Enter product description"
+						error={errors.description}
 					/>
 				</div>
 			</div>
 
 			<div className="mt-6 flex justify-end space-x-3">
-				<button
+				<Button
+					variant="secondary"
 					type="button"
-					className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-gray-500"
+					className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 "
 					onClick={() => {
 						dispatch(closeModal());
 						dispatch(clearSelectedProduct());
 					}}
 				>
 					Cancel
-				</button>
-				<button
-					type="submit"
-					className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 disabled:opacity-50"
-				>
-					{isEdit ? 'Update Product' : 'Create Product'}
-				</button>
+				</Button>
+				<Button type="submit">{isEdit ? 'Update ' : 'Create '}</Button>
 			</div>
 		</form>
 	);

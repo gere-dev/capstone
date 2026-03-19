@@ -1,12 +1,28 @@
 import { createSlice } from '@reduxjs/toolkit';
 import type { TOrder } from '../../schemas';
 import { orderThunk } from './order.thunk';
-
+import { EOrder } from '../../enums/order.enum';
+const initialSelectedOrder: TOrder = {
+	id: '',
+	name: '',
+	address: '',
+	productId: '',
+	productName: '',
+	productPrice: 0,
+	purchaseDate: new Date(),
+	quantity: 0,
+	sku: '',
+	status: EOrder.pending,
+	availableQuantity: 0,
+	createdAt: new Date(),
+	updatedAt: new Date(),
+	phone: '',
+};
 interface OrderState {
 	orders: TOrder[];
 	selectedOrder: TOrder;
 	status: 'idle' | 'loading' | 'succeeded' | 'failed';
-	error: string | null;
+	error: any;
 	pagination: {
 		currentPage: number;
 		itemsPerPage: 10 | 25 | 50;
@@ -17,7 +33,7 @@ interface OrderState {
 
 const initialState: OrderState = {
 	orders: [],
-	selectedOrder: {} as TOrder,
+	selectedOrder: initialSelectedOrder,
 	status: 'idle',
 	error: null,
 	pagination: {
@@ -31,7 +47,17 @@ const initialState: OrderState = {
 export const OrderSlice = createSlice({
 	name: 'order',
 	initialState,
-	reducers: {},
+	reducers: {
+		setOrderCurrentPage: (state, action) => {
+			state.pagination.currentPage = action.payload;
+		},
+		setOrdersPerPage: (state, action) => {
+			state.pagination.itemsPerPage = action.payload;
+		},
+		clearSelectedOrder: (state) => {
+			state.selectedOrder = initialSelectedOrder;
+		},
+	},
 	extraReducers: (builder) => {
 		builder
 			// get all orders
@@ -47,7 +73,7 @@ export const OrderSlice = createSlice({
 
 			.addCase(orderThunk.getAllOrders.rejected, (state, action) => {
 				state.status = 'failed';
-				state.error = action.payload as string;
+				state.error = action.payload;
 			})
 
 			// search order
@@ -61,7 +87,7 @@ export const OrderSlice = createSlice({
 
 			.addCase(orderThunk.searchOrder.rejected, (state, action) => {
 				state.status = 'failed';
-				state.error = action.payload as string;
+				state.error = action.payload;
 			})
 			// create order
 			.addCase(orderThunk.createOrder.pending, (state) => {
@@ -74,7 +100,7 @@ export const OrderSlice = createSlice({
 			})
 			.addCase(orderThunk.createOrder.rejected, (state, action) => {
 				state.status = 'failed';
-				state.error = action.payload as string;
+				state.error = action.payload;
 			})
 
 			// update order
@@ -92,7 +118,7 @@ export const OrderSlice = createSlice({
 			})
 			.addCase(orderThunk.updateOrder.rejected, (state, action) => {
 				state.status = 'failed';
-				state.error = action.payload as string;
+				state.error = action.payload;
 			})
 
 			// get order by id
@@ -105,7 +131,9 @@ export const OrderSlice = createSlice({
 			})
 			.addCase(orderThunk.getOrderById.rejected, (state, action) => {
 				state.status = 'failed';
-				state.error = action.payload as string;
+				state.error = action.payload;
 			});
 	},
 });
+
+export const { setOrderCurrentPage, setOrdersPerPage, clearSelectedOrder } = OrderSlice.actions;

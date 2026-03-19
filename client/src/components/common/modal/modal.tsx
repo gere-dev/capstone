@@ -1,32 +1,35 @@
 import { useAppDispatch, useAppSelector } from '../../../hooks';
 import { closeModal, selectModal } from '../../../features/modal';
-import { useEffect, useRef } from 'react';
+import { useCallback, useEffect, useRef } from 'react';
 
 interface Props {
 	children: React.ReactNode;
-	clearData?: () => void;
+	onClose?: () => void;
 }
-export const Modal = ({ children, clearData }: Props) => {
+export const Modal = ({ children, onClose }: Props) => {
 	const modalRef = useRef<HTMLDivElement>(null);
 
 	const { isOpen } = useAppSelector(selectModal);
 
 	const dispatch = useAppDispatch();
 
-	const handleClickOutside = (e: MouseEvent) => {
-		e.stopPropagation();
-		if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
-			dispatch(closeModal());
-			if (clearData) {
-				clearData();
+	const handleClickOutside = useCallback(
+		(e: MouseEvent) => {
+			e.stopPropagation();
+			if (modalRef.current && !modalRef.current.contains(e.target as Node)) {
+				dispatch(closeModal());
+				if (onClose) {
+					onClose();
+				}
 			}
-		}
-	};
+		},
+		[dispatch, onClose],
+	);
 
 	useEffect(() => {
 		document.addEventListener('mousedown', handleClickOutside);
 		return () => document.removeEventListener('mousedown', handleClickOutside);
-	}, []);
+	}, [handleClickOutside]);
 
 	if (!isOpen) return null;
 

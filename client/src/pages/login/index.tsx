@@ -5,24 +5,11 @@ import { z } from 'zod';
 import { useAppDispatch } from '../../hooks';
 import { authThunk } from '../../features/auth';
 import { useNavigate, useLocation } from 'react-router';
-
-const userSchema = z.object({
-	email: z
-		.email()
-		.min(2, 'Please enter a valid email address')
-		.max(50, 'Email is too long')
-		.transform((email) => email.trim().toLowerCase()),
-	password: z
-		.string()
-		.min(6, 'Password must be at least 6 characters')
-		.max(60, 'Password is too long')
-		.transform((password) => password.trim()),
-});
-
-type TFormData = z.infer<typeof userSchema>;
+import { loginSchema, type TLoginForm } from '../../schemas';
+import { formatZodErrors, mapBackendZodErrors } from '../../utils';
 
 export const LoginPage = () => {
-	const [formData, setFormData] = useState<TFormData>({
+	const [formData, setFormData] = useState<TLoginForm>({
 		email: '',
 		password: '',
 	});
@@ -41,47 +28,39 @@ export const LoginPage = () => {
 			[name]: value,
 		}));
 
-		if (errors[name]) {
-			console.log('errors[name]', errors[name]);
-
+		if (errors[name] || errors.server) {
 			setErrors((prev) => ({
 				...prev,
 				[name]: '',
+				server: '',
 			}));
 		}
 	};
 
-	const validate = () => {
-		try {
-			userSchema.parse(formData);
-
-			setErrors({});
-			return true;
-		} catch (error) {
-			const newErrors: { [key: string]: string } = {};
-
-			if (error instanceof z.ZodError) {
-				error.issues.forEach((err) => {
-					const key = err.path.join('.');
-					newErrors[key] = err.message;
-				});
-			}
-
-			setErrors(newErrors);
-			return false;
-		}
-	};
-
-	const handleSubmit = (e: React.SubmitEvent<HTMLFormElement>) => {
+	const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
 		e.preventDefault();
+		const result = loginSchema.safeParse(formData);
 
-		setErrors({});
+		if (!result.success) {
+			setErrors(formatZodErrors(result.error));
+			return;
+		}
 
-		if (validate()) {
-			console.log('valid', formData);
-			dispatch(authThunk.login(formData)).unwrap();
+		try {
+			setErrors({});
+
+			await dispatch(authThunk.login(result.data)).unwrap();
 
 			navigate(from, { replace: true });
+		} catch (error: any) {
+			const backendErrors = mapBackendZodErrors(error);
+			if (backendErrors) {
+				setErrors(backendErrors);
+			} else {
+				setErrors({
+					server: 'Invalid email or password. Please try again.',
+				});
+			}
 		}
 	};
 
@@ -89,7 +68,7 @@ export const LoginPage = () => {
 		<div className="h-screen w-screen flex justify-center items-center">
 			<div className="bg-white p-8 rounded w-full max-w-md">
 				<h2 className="text-2xl font-bold text-center mb-6">Login</h2>
-				<form onSubmit={handleSubmit}>
+				<form className="flex flex-col gap-5 relative " onSubmit={handleSubmit}>
 					<InputField
 						label="Email"
 						type="email"
@@ -114,11 +93,14 @@ export const LoginPage = () => {
 					<Button type="submit" variant="primary">
 						Login
 					</Button>
+					<small className="absolute -bottom-2 left-1/2 -translate-x-1/2 translate-y-1/2 w-full text-center right-1/2 text-red-600 ">
+						{errors.server}
+					</small>
 				</form>
 				<div className="mt-4 text-center">
 					<p className="text-gray-600">
 						<span className="mr-2">Don't have an account?</span>
-						<Link className="text-blue-500 hover:text-blue-700 font-bold" to={'/register'}>
+						<Link className=" font-bold underline underline-offset-4 " to={'/register'}>
 							Register
 						</Link>
 					</p>

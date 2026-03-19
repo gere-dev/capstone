@@ -18,7 +18,7 @@ const searchOrder = async (term: string) => {
 	return data;
 };
 
-const createOrder = async (order: TOrder): Promise<TOrder> => {
+const createOrder = async (order: Omit<TOrder, 'id'>): Promise<TOrder> => {
 	const { data } = await privateInstance.post('/order', order);
 	return data;
 };

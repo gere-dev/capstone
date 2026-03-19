@@ -1,12 +1,12 @@
 import { Op } from 'sequelize';
-import { OrderModel, ProductModel } from '../models/index.js';
-import type { OrderInstance } from '../models/Order.js';
+import { Order, Product } from '../models/index.js';
 import { orderBaseSchema, orderSchema, type TOrder, type TOrderBase } from '../schema/order.schema.js';
-import { BaseRepository } from './base.repository.js';
+import { BaseRepository, type IBaseRepository } from './base.repository.js';
+export interface IOrderRepository extends IBaseRepository<TOrder, TOrderBase> {}
 
-export class OrderRepository extends BaseRepository<TOrder, TOrderBase, OrderInstance> {
+class OrderRepository extends BaseRepository<TOrder, TOrderBase, Order> implements IOrderRepository {
 	constructor() {
-		super(OrderModel, orderSchema, orderBaseSchema);
+		super(Order, orderSchema, orderBaseSchema);
 	}
 
 	protected format(record: any): TOrder {
@@ -16,10 +16,10 @@ export class OrderRepository extends BaseRepository<TOrder, TOrderBase, OrderIns
 			phone: record.phone,
 			address: record.address,
 			purchaseDate: new Date(record.purchaseDate),
-			productId: record.Product.id,
+			productId: record?.Product?.id,
 			productName: record.productName,
 			quantity: record.quantity,
-			availableQuantity: record.Product.quantity,
+			availableQuantity: record?.Product?.quantity ? record.Product.quantity : 0,
 			productPrice: record.productPrice,
 			sku: record.sku,
 			status: record.status,
@@ -27,6 +27,9 @@ export class OrderRepository extends BaseRepository<TOrder, TOrderBase, OrderIns
 	}
 
 	async search(userId: string, term: string): Promise<TOrder[]> {
+		if (!term || term.trim() === '') {
+			return this.findAll(userId);
+		}
 		const records = await this.model.findAll({
 			where: {
 				userId,
@@ -47,9 +50,11 @@ export class OrderRepository extends BaseRepository<TOrder, TOrderBase, OrderIns
 	protected getQueryOptions(userId: string, id?: string) {
 		return {
 			where: this.getWhereIds(userId, id),
-			include: [ProductModel],
+			include: [Product],
 			raw: true,
 			nest: true,
 		};
 	}
 }
+
+export const orderRepo = new OrderRepository();

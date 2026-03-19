@@ -4,34 +4,11 @@ import { Link } from 'react-router';
 import { z } from 'zod';
 import { useAppDispatch } from '../../hooks';
 import { authThunk } from '../../features/auth';
-
-const userSchema = z
-	.object({
-		name: z.string().min(2, 'Please enter a valid name').max(50, 'Name is too long'),
-		email: z
-			.email()
-			.min(2, 'Please enter a valid email address')
-			.max(50, 'Email is too long')
-			.transform((email) => email.trim().toLowerCase()),
-		password: z
-			.string()
-			.min(6, 'Password must be at least 6 characters')
-			.max(60, 'Password is too long')
-			.transform((password) => password.trim()),
-		confirmPassword: z
-			.string()
-			.min(6, 'Confirm password must be at least 6 characters')
-			.transform((password) => password.trim()),
-	})
-	.refine((data) => data.password === data.confirmPassword, {
-		message: "Passwords don't match",
-		path: ['confirmPassword'],
-	});
-
-type TFormData = z.infer<typeof userSchema>;
+import { registerSchema, type TRegisterForm } from '../../schemas';
+import { formatZodErrors, mapBackendZodErrors } from '../../utils';
 
 export const RegisterPage = () => {
-	const [formData, setFormData] = useState<TFormData>({
+	const [formData, setFormData] = useState<TRegisterForm>({
 		name: '',
 		email: '',
 		password: '',
@@ -49,45 +26,37 @@ export const RegisterPage = () => {
 			[name]: value,
 		}));
 
-		if (errors[name]) {
-			console.log('errors[name]', errors[name]);
-
+		if (errors[name] || errors.server) {
 			setErrors((prev) => ({
 				...prev,
 				[name]: '',
+				server: '',
 			}));
 		}
 	};
 
-	const validate = () => {
+	const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
+		e.preventDefault();
+		const result = registerSchema.safeParse(formData);
+
+		if (!result.success) {
+			setErrors(formatZodErrors(result.error));
+			return;
+		}
+
 		try {
-			userSchema.parse(formData);
-
 			setErrors({});
-			return true;
-		} catch (error) {
-			const newErrors: { [key: string]: string } = {};
 
-			if (error instanceof z.ZodError) {
-				error.issues.forEach((err) => {
-					const key = err.path.join('.');
-					newErrors[key] = err.message;
+			await dispatch(authThunk.register(result.data)).unwrap();
+		} catch (error: any) {
+			const backendErrors = mapBackendZodErrors(error);
+			if (backendErrors) {
+				setErrors(backendErrors);
+			} else {
+				setErrors({
+					server: error,
 				});
 			}
-
-			setErrors(newErrors);
-			return false;
-		}
-	};
-
-	const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-		e.preventDefault();
-
-		setErrors({});
-
-		if (validate()) {
-			console.log('valid', formData);
-			dispatch(authThunk.register(formData));
 		}
 	};
 
@@ -95,7 +64,7 @@ export const RegisterPage = () => {
 		<div className="h-screen w-screen flex justify-center items-center">
 			<div className="bg-white p-8 rounded w-full max-w-md">
 				<h2 className="text-2xl font-bold text-center mb-6">Register</h2>
-				<form onSubmit={handleSubmit}>
+				<form className="flex flex-col gap-5 relative" onSubmit={handleSubmit}>
 					<InputField
 						label="Name"
 						type="text"
@@ -139,11 +108,14 @@ export const RegisterPage = () => {
 					<Button type="submit" variant="primary">
 						Register
 					</Button>
+					<small className="absolute -bottom-2 left-1/2 -translate-x-1/2 translate-y-1/2 w-full text-center right-1/2 text-red-600 ">
+						{errors.server}
+					</small>
 				</form>
 				<div className="mt-4 text-center">
 					<p className="text-gray-600">
 						<span className="mr-2">Already have an account?</span>
-						<Link className="text-blue-500 hover:text-blue-700 font-bold" to={'/'}>
+						<Link className="underline underline-offset-4 font-bold" to={'/'}>
 							Login
 						</Link>
 					</p>

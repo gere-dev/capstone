@@ -1,0 +1,36 @@
+import z from 'zod';
+import { sanitized } from '../validation/sanitized.js';
+
+export const userBaseSchema = z.object({
+	name: sanitized(z.string().min(2, 'Please enter a valid name').max(50, 'Name is too long')),
+	email: sanitized(z.string().email('Please enter a valid email address').max(50, 'Email is too long')).transform(
+		(email) => email.trim().toLowerCase(),
+	),
+	password: sanitized(
+		z.string().min(6, 'Password must be at least 6 characters').max(60, 'Password is too long'),
+	).transform((password) => password.trim()),
+});
+
+export const userSchema = userBaseSchema.omit({ password: true }).extend({
+	id: z.uuid(),
+	createdAt: z.date().optional(),
+	updatedAt: z.date().optional(),
+});
+
+export const registerSchema = userBaseSchema
+	.extend({
+		confirmPassword: sanitized(z.string().min(6, 'Confirm password must be at least 6 characters')).transform(
+			(password) => password.trim(),
+		),
+	})
+	.refine((data) => data.password === data.confirmPassword, {
+		message: "Passwords don't match",
+		path: ['confirmPassword'],
+	});
+
+export const loginSchema = userBaseSchema.pick({ email: true, password: true });
+
+export type TRegister = z.infer<typeof registerSchema>;
+export type TLogin = z.infer<typeof loginSchema>;
+export type TUserBase = z.infer<typeof userBaseSchema>;
+export type TUser = z.infer<typeof userSchema>;

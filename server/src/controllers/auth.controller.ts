@@ -1,185 +1,101 @@
-import { type Request, type Response } from 'express';
+import type { Request, Response } from 'express';
+import bcrypt from 'bcrypt';
 import { z } from 'zod';
 import { authRepository } from '../repositories/auth.repository.js';
-import bcrypt from 'bcrypt';
-import jwt, { type JwtPayload } from 'jsonwebtoken';
-import { error } from 'node:console';
-import type { IUser } from '../types/user.type.js';
+
 import { authUtils } from '../utils/auth.util.js';
+import { loginSchema, registerSchema } from '../schema/user.schema.js';
 
-const registerSchema = z
-	.object({
-		name: z.string().min(2, 'Please enter a valid name').max(50, 'Name is too long'),
-		email: z
-			.email()
-			.min(2, 'Please enter a valid email address')
-			.max(50, 'Email is too long')
-			.transform((email) => email.trim().toLowerCase()),
-		password: z
-			.string()
-			.min(6, 'Password must be at least 6 characters')
-			.max(60, 'Password is too long')
-			.transform((password) => password.trim()),
-		confirmPassword: z
-			.string()
-			.min(6, 'Confirm password must be at least 6 characters')
-			.transform((password) => password.trim()),
-	})
-	.refine((data) => data.password === data.confirmPassword, {
-		message: "Passwords don't match",
-		path: ['confirmPassword'],
-	});
+export class AuthController {
+	private readonly repo = authRepository;
+	private readonly cookieOptions = {
+		httpOnly: true,
+		secure: true,
+		sameSite: 'none' as const,
+		maxAge: 365 * 24 * 60 * 60 * 1000,
+	};
 
-// register
-const register = async (req: Request, res: Response) => {
-	try {
-		const validateData = registerSchema.parse(req.body);
-
-		// hash password
-		const hashedPassword = await bcrypt.hash(validateData.password, 12);
-		validateData.password = hashedPassword;
-
-		const newUserData = {
-			name: validateData.name,
-			email: validateData.email,
-			password: hashedPassword,
-		};
-
-		const existingUser = await authRepository.getUserByEmail(validateData.email);
-
-		if (existingUser) {
-			return res.status(409).json({ message: 'User already exists' });
-		}
-
-		const newUser = await authRepository.register(newUserData);
-
-		if (!newUser) {
-			return res.status(400).json({ message: 'User registration failed' });
-		}
-
-		// generate tokens
-		const { accessToken, refreshToken } = authUtils.generateTokens(newUser.id);
-
-		if (!accessToken || !refreshToken) {
-			return res.status(500).json({ message: 'Server configuration error' });
-		}
-
-		// set refresh token cookie
-		res.cookie('refreshToken', refreshToken, {
-			httpOnly: true,
-			secure: true,
-			sameSite: 'none',
-			maxAge: 365 * 24 * 60 * 60 * 1000,
-		});
-
-		const userData: IUser = {
-			name: newUser.name,
-			email: newUser.email,
-			id: newUser.id,
-		};
-		res.status(201).json({ user: userData, accessToken });
-	} catch (err) {
-		if (err instanceof z.ZodError) {
-			const structuredErrors = err.issues.map((error) => ({
-				message: error.message,
-				path: error.path,
-			}));
-
-			res.status(400).json({
+	private handleError(res: Response, error: unknown) {
+		if (error instanceof z.ZodError) {
+			return res.status(400).json({
 				success: false,
-				errors: structuredErrors,
+				errors: error.issues.map((err) => ({
+					message: err.message,
+					path: err.path,
+				})),
 			});
-		} else {
-			console.log('[Register Controller] Error: ', err);
-			res.status(500).json({ message: 'Internal server error' });
 		}
+		console.error('[Auth Controller Error]:', error);
+		return res.status(500).json({ message: 'Internal server error' });
 	}
-};
 
-// login
-const loginSchema = z.object({
-	email: z.email('Email is invalid'),
-	password: z.string().min(6, 'Password must be at least 6 characters'),
-});
+	public register = async (req: Request, res: Response) => {
+		try {
+			const validatedData = registerSchema.parse(req.body);
 
-const login = async (req: Request, res: Response) => {
-	try {
-		const validateData = loginSchema.parse(req.body);
-		const user = await authRepository.login(validateData);
+			const existingUser = await this.repo.findUserByEmail(validatedData.email);
+			if (existingUser) {
+				return res.status(409).json({ message: 'User already exists' });
+			}
 
-		if (!user) {
-			return res.status(401).json({ message: 'Invalid email or password' });
-		}
-
-		// generate tokens
-		const { accessToken, refreshToken } = authUtils.generateTokens(user.id);
-
-		if (!accessToken || !accessToken) {
-			return res.status(500).json({ message: 'Server configuration error' });
-		}
-
-		// set refresh token cookie
-		res.cookie('refreshToken', refreshToken, {
-			httpOnly: true,
-			secure: true,
-			sameSite: 'none',
-			maxAge: 365 * 24 * 60 * 60 * 1000,
-		});
-
-		// delete password
-		const userData: IUser = {
-			name: user.name,
-			email: user.email,
-			id: user.id,
-		};
-
-		res.status(201).json({ user: userData, accessToken });
-	} catch (err) {
-		if (err instanceof z.ZodError) {
-			const validationErrors = err.issues.map((error) => ({
-				message: error.message,
-				path: error.path,
-			}));
-			res.status(400).json({
-				success: false,
-				errors: validationErrors,
+			const hashedPassword = await bcrypt.hash(validatedData.password, 12);
+			const newUser = await this.repo.register({
+				...validatedData,
+				password: hashedPassword,
 			});
-		} else {
-			res.status(500).json({ message: 'Internal server error' });
+
+			const { accessToken, refreshToken } = authUtils.generateTokens(newUser.id);
+			res.cookie('refreshToken', refreshToken, this.cookieOptions);
+
+			res.status(201).json({ user: newUser, accessToken });
+		} catch (error) {
+			this.handleError(res, error);
 		}
-	}
-};
+	};
 
-// logout
-const logout = async (req: Request, res: Response) => {
-	try {
-		res.clearCookie('refreshToken');
-		res.status(200).json({ message: 'Logged out successfully' });
-	} catch (err) {
-		console.log('[Logout Controller] Error: ', err);
-		res.status(500).send('Internal server');
-	}
-};
+	public login = async (req: Request, res: Response) => {
+		const DUMMY_HASH = '$2b$10$K9RP.S9f0jNo9NfS9NfS9Oe9Oe9Oe9Oe9Oe9Oe9Oe9Oe9Oe9Oe9Oe';
+		try {
+			const { email, password } = loginSchema.parse(req.body);
+			const user = await this.repo.findUserByEmail(email);
 
-// refresh token
-const refreshToken = async (req: Request, res: Response) => {
-	try {
-		const userId = req.user.id;
-		console.log('refresh control user id: ', userId);
+			const hashToVerify = user ? user.password : DUMMY_HASH;
+			const isValidPassword = await bcrypt.compare(password, hashToVerify);
 
-		// generate tokens
-		const { accessToken } = authUtils.generateTokens(userId);
+			if (!user || !isValidPassword) {
+				return res.status(401).json({ message: 'Invalid email or password' });
+			}
 
-		res.status(200).json({ accessToken });
-	} catch (error) {
-		console.log('[Refresh Controller] Error: ', error);
-		res.status(401).json({ message: 'Invalid refresh token' });
-	}
-};
+			const { accessToken, refreshToken } = authUtils.generateTokens(user.id);
+			res.cookie('refreshToken', refreshToken, this.cookieOptions);
 
-export const authController = {
-	register,
-	login,
-	logout,
-	refreshToken,
-};
+			const userData = { id: user.id, name: user.name, email: user.email };
+			res.status(200).json({ user: userData, accessToken });
+		} catch (error) {
+			this.handleError(res, error);
+		}
+	};
+
+	public logout = async (req: Request, res: Response) => {
+		try {
+			res.clearCookie('refreshToken', { ...this.cookieOptions, maxAge: 0 });
+			res.status(200).json({ message: 'Logged out successfully' });
+		} catch (error) {
+			this.handleError(res, error);
+		}
+	};
+
+	public refreshToken = async (req: Request, res: Response) => {
+		try {
+			const userId = req.user?.id;
+			if (!userId) return res.status(401).json({ message: 'Unauthorized' });
+
+			const { accessToken } = authUtils.generateTokens(userId);
+			res.status(200).json({ accessToken });
+		} catch (error) {
+			res.status(401).json({ message: 'Invalid refresh token' });
+		}
+	};
+}
+
+export const authController = new AuthController();

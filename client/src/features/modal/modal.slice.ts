@@ -1,29 +1,32 @@
 import { createSlice, type PayloadAction } from '@reduxjs/toolkit';
+import { EFormModalType } from '../../enums';
 
 interface ModalState {
 	isOpen: boolean;
 	isEdit: boolean;
-	modalType: 'product' | 'order';
+	formModalType: EFormModalType;
 }
 
 const initialState: ModalState = {
 	isOpen: false,
 	isEdit: false,
-	modalType: 'product',
+	formModalType: EFormModalType.RESET,
 };
 
 export const modalSlice = createSlice({
 	name: 'modal',
 	initialState,
 	reducers: {
-		openModal: (state, action: PayloadAction<{ isEdit: boolean; modalType: 'product' | 'order' }>) => {
-			state.isOpen = true;
+		openModal: (state, action: PayloadAction<{ isEdit: boolean; modalType: EFormModalType }>) => {
 			state.isEdit = action.payload.isEdit;
-			state.modalType = action.payload.modalType;
+			state.formModalType = action.payload.modalType;
+			state.isOpen = true;
+			console.log(action.payload.modalType);
 		},
 		closeModal: (state) => {
 			state.isOpen = false;
 			state.isEdit = false;
+			state.formModalType = EFormModalType.RESET;
 		},
 	},
 });

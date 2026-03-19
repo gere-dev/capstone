@@ -1,18 +1,20 @@
 import z from 'zod';
+import { sanitized } from '../validation/sanitized.js';
+import { EProductStatus } from '../enums/product.enum.js';
 
 export const productBaseSchema = z.object({
-	name: z.string().min(1),
+	name: sanitized(z.string().min(2).max(50)),
 	price: z.coerce.number().positive(),
-	description: z.string().nullable().optional(),
+	description: sanitized(z.string()).nullable().optional(),
 	quantity: z.number().int().nonnegative(),
 	categoryId: z.uuid(),
-	sku: z.string().min(3),
+	sku: sanitized(z.string().min(3)),
 });
 
 export const productSchema = productBaseSchema.extend({
 	id: z.uuid(),
-	category: z.string(),
-	status: z.enum(['In Stock', 'Low Stock', 'Out of Stock']),
+	category: sanitized(z.string()),
+	status: z.enum([EProductStatus.IN_STOCK, EProductStatus.LOW_STOCK, EProductStatus.OUT_OF_STOCK]),
 	createdAt: z.date().optional(),
 	updatedAt: z.date().optional(),
 });

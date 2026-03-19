@@ -1,6 +1,6 @@
 import './App.css';
 import { Route, Routes } from 'react-router';
-import { InventoryPage, LoginPage, OrdersPage, RegisterPage, SuppliersPage } from './pages';
+import { CategoriesPage, InventoryPage, LoginPage, OrdersPage, RegisterPage, ReportPage, SuppliersPage } from './pages';
 import { ProtectedRoute, PublicRoute, ModalContainer } from './components/common';
 
 function App() {
@@ -18,6 +18,8 @@ function App() {
 					<Route path="/" element={<InventoryPage />} />
 					<Route path="/suppliers" element={<SuppliersPage />} />
 					<Route path="/orders" element={<OrdersPage />} />
+					<Route path="/categories" element={<CategoriesPage />} />
+					<Route path="/report" element={<ReportPage />} />
 				</Route>
 			</Routes>
 

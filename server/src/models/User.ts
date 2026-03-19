@@ -1,59 +1,59 @@
 import { DataTypes, Model, Sequelize } from 'sequelize';
-import { type IUser } from '../types/user.type.js';
-export interface UserAttributes extends IUser {
-	password: string;
+import type { InferAttributes, InferCreationAttributes, CreationOptional } from 'sequelize';
+
+export class User extends Model<InferAttributes<User>, InferCreationAttributes<User>> {
+	declare id: CreationOptional<string>;
+	declare name: string;
+	declare email: string;
+	declare password: string;
+
+	// Timestamps
+	declare createdAt: CreationOptional<Date>;
+	declare updatedAt: CreationOptional<Date>;
+
+	static initModel(sequelize: Sequelize) {
+		return User.init(
+			{
+				id: {
+					type: DataTypes.UUID,
+					defaultValue: DataTypes.UUIDV4,
+					primaryKey: true,
+					allowNull: false,
+				},
+				name: {
+					type: DataTypes.STRING,
+					allowNull: false,
+					validate: {
+						notEmpty: true,
+						len: [2, 100],
+					},
+				},
+				email: {
+					type: DataTypes.STRING,
+					allowNull: false,
+					unique: true,
+					validate: {
+						isEmail: true,
+						notEmpty: true,
+						len: [6, 100],
+					},
+				},
+				password: {
+					type: DataTypes.STRING,
+					allowNull: false,
+					validate: {
+						notEmpty: true,
+						len: [6, 100],
+					},
+				},
+				createdAt: DataTypes.DATE,
+				updatedAt: DataTypes.DATE,
+			},
+			{
+				sequelize,
+				tableName: 'users',
+				underscored: true,
+			},
+		);
+	}
 }
-
-interface UserCreationAttributes extends Omit<UserAttributes, 'id'> {
-	password: string;
-}
-
-export interface UserInstance extends Model<UserAttributes, UserCreationAttributes>, UserAttributes {}
-
-const User = (sequelize: Sequelize) => {
-	const UserModel = sequelize.define<UserInstance>(
-		'User',
-		{
-			id: {
-				type: DataTypes.UUID,
-				defaultValue: DataTypes.UUIDV4,
-				primaryKey: true,
-				allowNull: false,
-			},
-			name: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				validate: {
-					notEmpty: true,
-					len: [2, 100],
-				},
-			},
-			email: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				unique: true,
-				validate: {
-					notEmpty: true,
-					len: [6, 100],
-				},
-			},
-			password: {
-				type: DataTypes.STRING,
-				allowNull: false,
-				validate: {
-					notEmpty: true,
-					len: [6, 100],
-				},
-			},
-		},
-		{
-			timestamps: true,
-			tableName: 'users',
-			underscored: true,
-		},
-	);
-
-	return UserModel;
-};
-
-export default User;

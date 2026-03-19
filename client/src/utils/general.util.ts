@@ -23,3 +23,11 @@ export function debounce<T extends (...args: any[]) => any>(
 
 	return debounced as any;
 }
+
+export const getGenericServerError = ({
+	action,
+	item,
+}: {
+	action: 'creating' | 'updating' | 'deleting';
+	item: string;
+}) => `Error occurred while ${action} ${item}`;
