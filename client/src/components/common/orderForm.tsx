@@ -93,15 +93,6 @@ export const OrderForm: React.FC<Props> = ({ isEdit, orderData }) => {
 			} else {
 				await dispatch(orderThunk.createOrder(result.data)).unwrap();
 
-				if (result.data.productId) {
-					await dispatch(
-						productThunk.updateQuantityProduct({
-							productId: result.data.productId,
-							productQuantity: quantityChange + cancelledOrderQuantity,
-						}),
-					).unwrap();
-				}
-
 				updateQuantityProduct(cancelledOrderQuantity, result.data?.productId);
 				clearFormAndCloseModal();
 			}
