@@ -47,6 +47,16 @@ export const OrderForm: React.FC<Props> = ({ isEdit, orderData }) => {
 		dispatch(closeModal());
 	};
 
+	const updateQuantityProduct = async (cancelledOrderQuantity: number, id?: string | null) => {
+		if (!id) return;
+		await dispatch(
+			productThunk.updateQuantityProduct({
+				productId: id,
+				productQuantity: quantityChange + cancelledOrderQuantity,
+			}),
+		).unwrap();
+	};
+
 	const handleSubmit = async (e: React.SubmitEvent<HTMLFormElement>) => {
 		e.preventDefault();
 		e.stopPropagation();
@@ -77,6 +87,11 @@ export const OrderForm: React.FC<Props> = ({ isEdit, orderData }) => {
 						order: result.data,
 					}),
 				).unwrap();
+				updateQuantityProduct(cancelledOrderQuantity, result.data?.productId);
+
+				clearFormAndCloseModal();
+			} else {
+				await dispatch(orderThunk.createOrder(result.data)).unwrap();
 
 				if (result.data.productId) {
 					await dispatch(
@@ -87,9 +102,7 @@ export const OrderForm: React.FC<Props> = ({ isEdit, orderData }) => {
 					).unwrap();
 				}
 
-				clearFormAndCloseModal();
-			} else {
-				await dispatch(orderThunk.createOrder(result.data)).unwrap();
+				updateQuantityProduct(cancelledOrderQuantity, result.data?.productId);
 				clearFormAndCloseModal();
 			}
 		} catch (error: any) {
